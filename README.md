@@ -1,16 +1,21 @@
-# Anonymous Chat
+# Anonymous P2P Chat
 
-A real-time anonymous chat application built with Node.js, Express, and WebSockets.
+A real-time, peer-to-peer anonymous chat application built with Node.js, Express, WebSockets, and WebRTC.
 
 ## Features
 
+- **Peer-to-Peer Communication:** Chat directly with other users without a central server, thanks to WebRTC.
 - **Anonymous Chatting:** Chat with others without revealing your identity.
 - **Multiple Chat Rooms:** Create unique, shareable chat rooms.
 - **Two Anonymity Modes:**
     - **Aliased:** Each user is assigned a unique alias (e.g., "User 1").
     - **Anonymous:** All messages are sent from "Anonymous".
-- **Real-time Communication:** Messages are sent and received in real-time using WebSockets.
+- **Real-time Communication:** Messages are sent and received in real-time.
 - **Responsive Design:** The application is designed to work on different screen sizes.
+
+## Architecture
+
+This application uses a hybrid architecture. A central server is used for serving the website and for signaling (helping peers find each other), but the chat messages themselves are exchanged directly between users' browsers using WebRTC.
 
 ## Getting Started
 

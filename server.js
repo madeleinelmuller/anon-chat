@@ -24,57 +24,48 @@ wss.on('connection', (ws, req) => {
     const roomId = req.url.slice(1);
 
     if (!rooms.has(roomId)) {
-        rooms.set(roomId, {
-            clients: new Set(),
-            settings: { anonymous: false },
-            aliases: new Map()
-        });
+        rooms.set(roomId, new Set());
     }
     const room = rooms.get(roomId);
-    room.clients.add(ws);
 
-    // Assign an alias
-    const alias = `User ${room.aliases.size + 1}`;
-    room.aliases.set(ws, alias);
+    // Notify existing clients about the new user
+    room.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'user-joined', from: ws.id }));
+        }
+    });
 
-    console.log(`Client connected to room ${roomId} as ${alias}`);
+    ws.id = uuidv4();
+    room.add(ws);
+
+    ws.send(JSON.stringify({ type: 'my-id', id: ws.id }));
+
+    console.log(`Client ${ws.id} connected to room ${roomId}`);
 
     ws.on('message', (message) => {
         const data = JSON.parse(message);
 
-        if (data.type === 'chat') {
-            const senderAlias = room.settings.anonymous ? 'Anonymous' : room.aliases.get(ws);
-            const broadcastMessage = JSON.stringify({
-                type: 'chat',
-                alias: senderAlias,
-                message: data.message
-            });
-
-            room.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(broadcastMessage);
+        // Relay signaling messages to the appropriate client
+        room.forEach(client => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+                if (data.to && client.id === data.to) {
+                    client.send(JSON.stringify({ ...data, from: ws.id }));
                 }
-            });
-        } else if (data.type === 'settings') {
-            room.settings.anonymous = data.anonymous;
-            const broadcastMessage = JSON.stringify({
-                type: 'settings',
-                anonymous: room.settings.anonymous
-            });
-
-            room.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(broadcastMessage);
-                }
-            });
-        }
+            }
+        });
     });
 
     ws.on('close', () => {
-        console.log(`Client disconnected from room ${roomId}`);
-        room.clients.delete(ws);
-        room.aliases.delete(ws);
-        if (room.clients.size === 0) {
+        console.log(`Client ${ws.id} disconnected from room ${roomId}`);
+        room.delete(ws);
+        // Notify other clients that this user has left
+        room.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ type: 'user-left', from: ws.id }));
+            }
+        });
+
+        if (room.size === 0) {
             rooms.delete(roomId);
         }
     });
